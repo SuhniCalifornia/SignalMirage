@@ -1,0 +1,72 @@
+{
+"manifestVersion": 5,
+"id": "com.suhnicalifornia.signalmirage",
+"name": "SignalMirage",
+"version": "1.0.0",
+"description": "A transmission-based dithering and texture system for Photoshop.",
+"author": "Suhni California / Alchemized Studio",
+"main": "index.html",
+"host": {
+"app": "PS",
+"minVersion": "23.0.0"
+},
+"entrypoints": [
+{
+"type": "panel",
+"id": "signalMiragePanel",
+"label": {
+"default": "SignalMirage"
+},
+"minimumSize": {
+"width": 400,
+"height": 680
+},
+"maximumSize": {
+"width": 1800,
+"height": 1800
+},
+"preferredDockedSize": {
+"width": 480,
+"height": 940
+},
+"preferredFloatingSize": {
+"width": 540,
+"height": 980
+},
+"icons": [
+{
+"width": 23,
+"height": 23,
+"path": "icon.png",
+"scale": [
+1,
+2
+],
+"theme": [
+"all"
+],
+"species": [
+"generic"
+]
+}
+]
+}
+],
+"icons": [
+{
+"width": 23,
+"height": 23,
+"path": "icon.png",
+"scale": [
+1,
+2
+],
+"theme": [
+"all"
+],
+"species": [
+"generic"
+]
+}
+]
+}
