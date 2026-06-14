@@ -47,8 +47,10 @@ signalResponse:48,
 dotSize:1,
 diffusion:96,
 transmissionClarity:0,
+textureType:"none",
 textureAmount:24,
 grainScale:1,
+edgeCharacter:"clean",
 edgeStrength:48
 },
 floyd:{
@@ -57,8 +59,10 @@ signalResponse:42,
 dotSize:1,
 diffusion:86,
 transmissionClarity:0,
+textureType:"none",
 textureAmount:20,
 grainScale:1,
+edgeCharacter:"clean",
 edgeStrength:42
 },
 threshold:{
@@ -67,8 +71,10 @@ signalResponse:52,
 dotSize:1,
 diffusion:0,
 transmissionClarity:8,
+textureType:"none",
 textureAmount:12,
 grainScale:1,
+edgeCharacter:"clean",
 edgeStrength:28
 },
 drift:{
@@ -77,8 +83,10 @@ signalResponse:56,
 dotSize:2,
 diffusion:72,
 transmissionClarity:-4,
+textureType:"none",
 textureAmount:28,
 grainScale:2,
+edgeCharacter:"clean",
 edgeStrength:52
 }
 };
@@ -90,14 +98,31 @@ let engineBootReady = false;
 let userChangedEngineControls = false;
 
 function engineControlIds(){
-return ["threshold","signalResponse","dotSize","diffusion","transmissionClarity","textureAmount","grainScale","edgeStrength"];
+return [
+"threshold",
+"signalResponse",
+"dotSize",
+"diffusion",
+"transmissionClarity",
+"textureType",
+"textureAmount",
+"grainScale",
+"edgeCharacter",
+"edgeStrength"
+];
 }
 
 function captureEngineState(){
 const state = {};
 engineControlIds().forEach(id=>{
 const el = controls[id];
-if(el){ state[id] = Number(el.value); }
+if(el){
+if(el.tagName && el.tagName.toLowerCase() === "select"){
+state[id] = el.value;
+} else {
+state[id] = Number(el.value);
+}
+}
 });
 return state;
 }
@@ -123,6 +148,9 @@ const stored = engineMemory[engineKey];
 const state = forceDefault ? defaults : (stored || defaults);
 applyEngineState(state);
 engineMemory[engineKey] = captureEngineState();
+if(typeof updateEdgeStrengthVisibility === "function"){
+updateEdgeStrengthVisibility();
+}
 }
 
 const twoColorPalettes = {
@@ -227,6 +255,14 @@ valueDisplay.textContent = Math.round(Number(input.value));
 
 function setControlValue(id, value){
 const input = document.getElementById(id);
+if(!input){ return; }
+
+if(input.tagName && input.tagName.toLowerCase() === "select"){
+input.value = String(value);
+input.dispatchEvent(new Event("change", { bubbles: true }));
+return;
+}
+
 const min = Number(input.min);
 const max = Number(input.max);
 const v = Math.max(min, Math.min(max, value));
@@ -389,7 +425,11 @@ setStatus("Engine reset.");
 queuePreview();
 });
 }
-controls.textureType.addEventListener("change", queuePreview);
+controls.textureType.addEventListener("change", ()=>{
+if(!suppressEngineMemory){ userChangedEngineControls = true; }
+saveActiveEngineState();
+queuePreview();
+});
 function updateEdgeStrengthVisibility(){
 const wrap = document.getElementById("edgeStrengthControl");
 if(!wrap || !controls.edgeCharacter){ return; }
@@ -398,6 +438,8 @@ wrap.style.display = controls.edgeCharacter.value === "clean" ? "none" : "block"
 if(controls.edgeCharacter){
 controls.edgeCharacter.addEventListener("change", ()=>{
 updateEdgeStrengthVisibility();
+if(!suppressEngineMemory){ userChangedEngineControls = true; }
+saveActiveEngineState();
 queuePreview();
 });
 updateEdgeStrengthVisibility();

@@ -111,6 +111,10 @@ padding:0 !important;
 line-height:1 !important;
 }
 
+.italic{ font-style:italic;font-size:10px;}
+
+
+
 select{
 width:100%;
 box-sizing:border-box;
