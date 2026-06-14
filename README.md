@@ -1,4 +1,4 @@
-![SignalMirage Banner](SignalMirage-plugin/git-banner-signalmirage.png)
+![SignalMirage Banner](plugin/git-banner-signalmirage.png)
 
 # SignalMirage
 
@@ -16,7 +16,7 @@ The plugin currently includes:
 
 ```text
 SignalMirage/
-  SignalMirage-plugin/
+  plugin/
     manifest.json
     index.html
     main.js
@@ -31,7 +31,7 @@ SignalMirage is a UXP-style Photoshop panel. To test it locally:
 
 1. Open Adobe UXP Developer Tool.
 2. Choose **Add Plugin**.
-3. Select `SignalMirage-plugin/manifest.json`.
+3. Select `plugin/manifest.json`.
 4. Load the plugin.
 5. Open it in Photoshop from the Plugins menu.
 

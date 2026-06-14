@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SignalMirage v1.1.1</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+<header class="app-header compact-header">
+<img src="logo-84.png" width="52" height="52" alt="SignalMirage"/>
+<div>
+<h1>SignalMirage</h1>
+<p>Transmission dither system for Photoshop.</p>
+</div>
+</header>
+<main>
+
+<section class="compact-section">
+<h2>Source</h2>
+<label for="engine">Dither Engine</label>
+<select id="engine">
+<option value="atkinson">Atkinson</option>
+<option value="floyd">Floyd-Steinberg</option>
+<option value="threshold">Threshold</option>
+<option value="drift">Printer-Drift</option>
+</select>
+<button id="resetEngine" class="miniButton" type="button">Reset Engine</button>
+
+<label for="palette">Palette</label>
+<select id="palette"></select>
+<div class="palettePreview" id="palettePreview">
+<span></span><span></span><span></span><span></span>
+</div>
+</section>
+
+<section class="compact-section">
+<h2>Tone</h2>
+<div class="control compact-control">
+<div class="controlBody">
+<div class="controlTop"><label for="threshold">Threshold Bias</label><div class="value" id="thresholdValue">128</div></div>
+<input type="range" id="threshold" min="1" max="255" value="128">
+</div>
+</div>
+<div class="control compact-control">
+<div class="controlBody">
+<div class="controlTop"><label for="signalResponse">Signal Response</label><div class="value" id="signalResponseValue">48</div></div>
+<input type="range" id="signalResponse" min="0" max="100" value="48">
+</div>
+</div>
+</section>
+
+<section class="compact-section">
+<h2>Structure</h2>
+<div class="control compact-control">
+<div class="controlBody">
+<div class="controlTop"><label for="dotSize">Dot Size</label><div class="value" id="dotSizeValue">1</div></div>
+<input type="range" id="dotSize" min="1" max="10" value="1">
+</div>
+</div>
+<div class="control compact-control">
+<div class="controlBody">
+<div class="controlTop"><label for="diffusion">Diffusion</label><div class="value" id="diffusionValue">96</div></div>
+<input type="range" id="diffusion" min="0" max="100" value="96">
+</div>
+</div>
+<div class="control compact-control">
+<div class="controlBody">
+<div class="controlTop"><label for="transmissionClarity">Transmission Clarity</label><div class="value" id="transmissionClarityValue">0</div></div>
+<div class="clarity-labels"><span>Soft</span><span>Hard</span></div>
+<input type="range" id="transmissionClarity" min="-100" max="100" value="0">
+</div>
+</div>
+</section>
+
+<section class="compact-section">
+<h2>Surface</h2>
+<label for="textureType">Surface Type</label>
+<select id="textureType">
+<option value="none">None</option>
+<option value="xeroxGrit">Xerox Grit</option>
+<option value="fixerResidue">Fixer Residue</option>
+</select>
+<div class="control compact-control">
+<div class="controlBody">
+<div class="controlTop"><label for="textureAmount">Surface Decay</label><div class="value" id="textureAmountValue">24</div></div>
+<input type="range" id="textureAmount" min="0" max="120" value="24">
+</div>
+</div>
+<div class="control compact-control">
+<div class="controlBody">
+<div class="controlTop"><label for="grainScale">Grain Scale</label><div class="value" id="grainScaleValue">1</div></div>
+<input type="range" id="grainScale" min="1" max="10" value="1">
+</div>
+</div>
+</section>
+
+<section class="compact-section">
+<h2>Edge</h2>
+<label for="edgeCharacter">Edge Character</label>
+<select id="edgeCharacter">
+<option value="clean">Clean</option>
+<option value="dryplate">Dry Plate</option>
+<option value="melt">Toner Leak</option>
+</select>
+<div class="control compact-control" id="edgeStrengthControl">
+<div class="controlBody">
+<div class="controlTop"><label for="edgeStrength">Edge Strength</label><div class="value" id="edgeStrengthValue">48</div></div>
+<input type="range" id="edgeStrength" min="0" max="100" value="48">
+</div>
+</div>
+</section>
+
+<section class="compact-section action-section">
+<div class="previewToggleRow">
+<label class="previewToggle">
+<input type="checkbox" id="livePreview">
+<span>Live Visual Preview</span>
+</label>
+</div>
+<button id="applyEngine">Apply SignalMirage Process</button>
+</section>
+
+</main>
+<footer>
+<div id="status">READY</div>
+<div class="version">SignalMirage v1.1.1</div>
+</footer>
+</div>
+<script src="main.js"></script>
+</body>
+</html>
