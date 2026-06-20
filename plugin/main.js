@@ -14,21 +14,18 @@ const statusEl = document.getElementById("status");
 
 const controls = {
 engine: document.getElementById("engine"),
-palette: document.getElementById("palette"),
 threshold: document.getElementById("threshold"),
 diffusion: document.getElementById("diffusion"),
 transmissionClarity: document.getElementById("transmissionClarity"),
-textureType: document.getElementById("textureType"),
-textureAmount: document.getElementById("textureAmount"),
 dotSize: document.getElementById("dotSize"),
-grainScale: document.getElementById("grainScale"),
-edgeCharacter: document.getElementById("edgeCharacter"),
-edgeStrength: document.getElementById("edgeStrength"),
-signalResponse: document.getElementById("signalResponse")
+signalResponse: document.getElementById("signalResponse"),
+blackPoint: document.getElementById("blackPoint"),
+whitePoint: document.getElementById("whitePoint")
 };
 
 const livePreviewToggle = document.getElementById("livePreview");
 const resetEngineButton = document.getElementById("resetEngine");
+const presetButtons = document.querySelectorAll(".presetButton");
 
 let previewLayerID = null;
 let previewSourceLayerID = null;
@@ -44,71 +41,101 @@ const engineDefaults = {
 atkinson:{
 threshold:128,
 signalResponse:48,
+blackPoint:0,
+whitePoint:255,
 dotSize:1,
 diffusion:96,
-transmissionClarity:0,
-textureType:"none",
-textureAmount:24,
-grainScale:1,
-edgeCharacter:"clean",
-edgeStrength:48
+transmissionClarity:0
 },
 floyd:{
 threshold:128,
 signalResponse:42,
+blackPoint:0,
+whitePoint:255,
 dotSize:1,
 diffusion:86,
-transmissionClarity:0,
-textureType:"none",
-textureAmount:20,
-grainScale:1,
-edgeCharacter:"clean",
-edgeStrength:42
-},
-threshold:{
-threshold:128,
-signalResponse:52,
-dotSize:1,
-diffusion:0,
-transmissionClarity:8,
-textureType:"none",
-textureAmount:12,
-grainScale:1,
-edgeCharacter:"clean",
-edgeStrength:28
-},
-drift:{
-threshold:128,
-signalResponse:56,
-dotSize:2,
-diffusion:72,
-transmissionClarity:-4,
-textureType:"none",
-textureAmount:28,
-grainScale:2,
-edgeCharacter:"clean",
-edgeStrength:52
+transmissionClarity:0
 }
 };
 
+const signalPresets = {
+clean:{
+label:"Lucid Transmission",
+engine:"floyd",
+threshold:128,
+signalResponse:40,
+blackPoint:0,
+whitePoint:255,
+dotSize:1,
+diffusion:86,
+transmissionClarity:8
+},
+ghost:{
+label:"Ghost Print",
+engine:"atkinson",
+threshold:144,
+signalResponse:34,
+blackPoint:140,
+whitePoint:244,
+dotSize:1,
+diffusion:92,
+transmissionClarity:-8
+},
+veil:{
+label:"Veil Drift",
+engine:"floyd",
+threshold:150,
+signalResponse:28,
+blackPoint:120,
+whitePoint:250,
+dotSize:1,
+diffusion:96,
+transmissionClarity:-15
+},
+echo:{
+label:"Echo Field",
+engine:"atkinson",
+threshold:136,
+signalResponse:38,
+blackPoint:60,
+whitePoint:245,
+dotSize:1,
+diffusion:100,
+transmissionClarity:-5
+}
+};
+
+let activePresetKey = null;
+let suppressPresetClear = false;
 let engineMemory = {};
 let activeEngineKey = controls.engine ? controls.engine.value : "atkinson";
 let suppressEngineMemory = false;
 let engineBootReady = false;
 let userChangedEngineControls = false;
+const RANGE_MIN_GAP = 5;
+let enforcingRange = false;
+
+function updatePresetButtons(){
+presetButtons.forEach(button=>{
+button.classList.toggle("is-active", button.dataset.preset === activePresetKey);
+});
+}
+
+function clearPresetSelection(){
+if(suppressPresetClear){ return; }
+activePresetKey = null;
+updatePresetButtons();
+}
 
 function engineControlIds(){
 return [
 "threshold",
 "signalResponse",
+"blackPoint",
+"whitePoint",
 "dotSize",
 "diffusion",
-"transmissionClarity",
-"textureType",
-"textureAmount",
-"grainScale",
-"edgeCharacter",
-"edgeStrength"
+"transmissionClarity"
 ];
 }
 
@@ -116,13 +143,7 @@ function captureEngineState(){
 const state = {};
 engineControlIds().forEach(id=>{
 const el = controls[id];
-if(el){
-if(el.tagName && el.tagName.toLowerCase() === "select"){
-state[id] = el.value;
-} else {
-state[id] = Number(el.value);
-}
-}
+if(el){ state[id] = Number(el.value); }
 });
 return state;
 }
@@ -136,7 +157,7 @@ function applyEngineState(state){
 suppressEngineMemory = true;
 engineControlIds().forEach(id=>{
 if(state[id] !== undefined && controls[id]){
-setControlValue(id,state[id]);
+setControlValue(id,state[id],false);
 }
 });
 suppressEngineMemory = false;
@@ -148,41 +169,7 @@ const stored = engineMemory[engineKey];
 const state = forceDefault ? defaults : (stored || defaults);
 applyEngineState(state);
 engineMemory[engineKey] = captureEngineState();
-if(typeof updateEdgeStrengthVisibility === "function"){
-updateEdgeStrengthVisibility();
 }
-}
-
-const twoColorPalettes = {
-ghostDance: {
-label: "Ghost + Dance",
-colors: [[173,173,173],[243,243,243]]
-},
-pureBW: {
-label: "Midnight + Moon",
-colors: [[0,0,0],[255,255,255]]
-}
-};
-
-
-
-const contaminationTones = {
-none:{
-label:"None",
-primary:[0,0,0],
-shadow:[0,0,0]
-},
-xeroxGrit:{
-label:"Xerox Grit",
-primary:[127,150,163],
-shadow:[63,69,72]
-},
-fixerResidue:{
-label:"Fixer Residue",
-primary:[119,115,109],
-shadow:[64,61,57]
-}
-};
 
 function stringifyError(error){
 if(!error){ return "Unknown error."; }
@@ -192,13 +179,49 @@ try { return JSON.stringify(error); } catch(e) { return String(error); }
 }
 
 function setStatus(message){
-statusEl.textContent = message;
+if(statusEl){ statusEl.textContent = message; }
 }
 
 function clamp(v){
 return Math.max(0, Math.min(255, v));
 }
 
+function rangeGray(value){
+const v = Math.max(0, Math.min(255, Math.round(Number(value) || 0)));
+return [v,v,v];
+}
+
+function getPalette(){
+const black = controls.blackPoint ? Math.round(Number(controls.blackPoint.value) || 0) : 0;
+const white = controls.whitePoint ? Math.round(Number(controls.whitePoint.value) || 255) : 255;
+return {
+label:"Range " + black + "-" + white,
+colors:[rangeGray(black),rangeGray(white)]
+};
+}
+
+function enforceRangeControls(activeId){
+if(!controls.blackPoint || !controls.whitePoint){ return; }
+let black = Math.round(Number(controls.blackPoint.value) || 0);
+let white = Math.round(Number(controls.whitePoint.value) || 255);
+black = Math.max(0, Math.min(250, black));
+white = Math.max(5, Math.min(255, white));
+if(black > white - RANGE_MIN_GAP){
+if(activeId === "blackPoint"){
+white = Math.min(255, Math.max(black + RANGE_MIN_GAP, white));
+if(white > 255){
+white = 255;
+black = white - RANGE_MIN_GAP;
+}
+} else {
+black = Math.max(0, Math.min(white - RANGE_MIN_GAP, black));
+}
+}
+controls.blackPoint.value = String(black);
+controls.whitePoint.value = String(white);
+updateValueText("blackPoint");
+updateValueText("whitePoint");
+}
 
 function applySignalResponseToLum(lum, response){
 const strength = Math.max(0, Math.min(100, Number(response) || 0)) / 100;
@@ -209,57 +232,19 @@ if(n > 0.72){ n = 0.72 + ((n - 0.72) * (1.0 - strength * 0.35)); }
 return clamp(n * 255);
 }
 
-function rgbString(rgb){
-return "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
-}
-
-function activePaletteSet(){
-return twoColorPalettes;
-}
-
-function populatePaletteSelect(){
-const set = activePaletteSet();
-controls.palette.innerHTML = "";
-Object.keys(set).forEach(key=>{
-const option = document.createElement("option");
-option.value = key;
-option.textContent = set[key].label;
-controls.palette.appendChild(option);
-});
-}
-
-function getPalette(){
-const set = activePaletteSet();
-return set[controls.palette.value] || set[Object.keys(set)[0]];
-}
-
-function updatePalettePreview(){
-const p = getPalette();
-const preview = document.getElementById("palettePreview");
-const swatches = preview.children;
-for(let i=0; i<swatches.length; i++){
-if(i < p.colors.length){
-swatches[i].style.display = "block";
-swatches[i].style.background = rgbString(p.colors[i]);
-} else {
-swatches[i].style.display = "none";
-}
-}
-}
-
 function updateValueText(id){
 const input = document.getElementById(id);
 const valueDisplay = document.getElementById(id + "Value");
-valueDisplay.textContent = Math.round(Number(input.value));
+if(input && valueDisplay){ valueDisplay.textContent = Math.round(Number(input.value)); }
 }
 
-function setControlValue(id, value){
+function setControlValue(id, value, dispatchChange = true){
 const input = document.getElementById(id);
 if(!input){ return; }
 
 if(input.tagName && input.tagName.toLowerCase() === "select"){
 input.value = String(value);
-input.dispatchEvent(new Event("change", { bubbles: true }));
+if(dispatchChange){ input.dispatchEvent(new Event("change", { bubbles: true })); }
 return;
 }
 
@@ -268,7 +253,7 @@ const max = Number(input.max);
 const v = Math.max(min, Math.min(max, value));
 input.value = String(Math.round(v));
 input.dispatchEvent(new Event("input", { bubbles: true }));
-input.dispatchEvent(new Event("change", { bubbles: true }));
+if(dispatchChange){ input.dispatchEvent(new Event("change", { bubbles: true })); }
 }
 
 function buildCustomSliders(){
@@ -288,6 +273,7 @@ const max = Number(input.max);
 const val = Number(input.value);
 const pct = (val - min) / (max - min);
 thumb.style.left = (pct * 100) + "%";
+track.style.setProperty("--fill", (pct * 100) + "%");
 }
 input.addEventListener("input", updateThumb);
 updateThumb();
@@ -299,7 +285,7 @@ pct = Math.max(0, Math.min(1, pct));
 const min = Number(input.min);
 const max = Number(input.max);
 const val = min + pct * (max - min);
-setControlValue(input.id, val);
+setControlValue(input.id, val, false);
 }
 
 track.addEventListener("pointerdown", (event)=>{
@@ -315,16 +301,15 @@ document.body.appendChild(glass);
 
 onDrag(event);
 
-function handleMove(e){
-onDrag(e);
-}
+function handleMove(e){ onDrag(e); }
 
 function handleUp(){
 glass.removeEventListener("pointermove", handleMove);
 glass.removeEventListener("pointerup", handleUp);
 window.removeEventListener("pointermove", handleMove);
 window.removeEventListener("pointerup", handleUp);
-if(glass.parentNode) glass.parentNode.removeChild(glass);
+if(glass.parentNode){ glass.parentNode.removeChild(glass); }
+input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 glass.addEventListener("pointermove", handleMove);
@@ -336,8 +321,7 @@ window.addEventListener("pointerup", handleUp);
 }
 
 buildCustomSliders();
-populatePaletteSelect();
-updatePalettePreview();
+enforceRangeControls();
 
 function queuePreview(){
 if(!previewEnabled || suppressPreview){ return; }
@@ -390,24 +374,36 @@ setStatus("Live preview disabled, but cleanup failed: " + stringifyError(error))
 });
 }
 
-["threshold","signalResponse","dotSize","diffusion","transmissionClarity","textureAmount","grainScale","edgeStrength"].forEach(id=>{
+["threshold","signalResponse","blackPoint","whitePoint","dotSize","diffusion","transmissionClarity"].forEach(id=>{
 const el = document.getElementById(id);
+if(!el){ return; }
 el.addEventListener("input", ()=>{
+if(enforcingRange){
 updateValueText(id);
+return;
+}
+if(id === "blackPoint" || id === "whitePoint"){
+enforcingRange = true;
+enforceRangeControls(id);
+controls.blackPoint.dispatchEvent(new Event("input", { bubbles: true }));
+controls.whitePoint.dispatchEvent(new Event("input", { bubbles: true }));
+enforcingRange = false;
+} else {
+updateValueText(id);
+}
 if(!suppressEngineMemory){ userChangedEngineControls = true; }
+clearPresetSelection();
 saveActiveEngineState();
+});
+el.addEventListener("change", ()=>{
 queuePreview();
 });
 updateValueText(id);
-});
-
-controls.palette.addEventListener("change", ()=>{
-updatePalettePreview();
-queuePreview();
 });
 
 if(controls.engine){
 controls.engine.addEventListener("change", ()=>{
+clearPresetSelection();
 saveActiveEngineState();
 activeEngineKey = controls.engine.value;
 loadEngineState(activeEngineKey,false);
@@ -418,33 +414,49 @@ queuePreview();
 
 if(resetEngineButton){
 resetEngineButton.addEventListener("click", ()=>{
+clearPresetSelection();
 const engineKey = controls.engine.value;
 activeEngineKey = engineKey;
 loadEngineState(engineKey,true);
-setStatus("Engine reset.");
+setStatus("Defaults reset.");
 queuePreview();
 });
-}
-controls.textureType.addEventListener("change", ()=>{
-if(!suppressEngineMemory){ userChangedEngineControls = true; }
-saveActiveEngineState();
-queuePreview();
-});
-function updateEdgeStrengthVisibility(){
-const wrap = document.getElementById("edgeStrengthControl");
-if(!wrap || !controls.edgeCharacter){ return; }
-wrap.style.display = controls.edgeCharacter.value === "clean" ? "none" : "block";
-}
-if(controls.edgeCharacter){
-controls.edgeCharacter.addEventListener("change", ()=>{
-updateEdgeStrengthVisibility();
-if(!suppressEngineMemory){ userChangedEngineControls = true; }
-saveActiveEngineState();
-queuePreview();
-});
-updateEdgeStrengthVisibility();
 }
 
+function applyPreset(presetKey){
+const preset = signalPresets[presetKey];
+if(!preset){ return; }
+suppressPresetClear = true;
+suppressEngineMemory = true;
+suppressPreview = true;
+
+if(controls.engine){
+controls.engine.value = preset.engine;
+activeEngineKey = preset.engine;
+}
+
+Object.keys(preset).forEach(key=>{
+if(key === "label" || key === "engine"){ return; }
+if(controls[key]){ setControlValue(key,preset[key],false); }
+});
+
+suppressEngineMemory = false;
+engineMemory[activeEngineKey] = captureEngineState();
+activePresetKey = presetKey;
+updatePresetButtons();
+suppressPresetClear = false;
+suppressPreview = false;
+setStatus("Preset: " + preset.label);
+queuePreview();
+}
+
+if(presetButtons && presetButtons.length){
+presetButtons.forEach(button=>{
+button.addEventListener("click", ()=>{
+applyPreset(button.dataset.preset);
+});
+});
+}
 
 function initializeEngineDefaults(){
 if(!controls.engine){ return; }
@@ -471,15 +483,8 @@ userChangedEngineControls = false;
 
 initializeEngineDefaults();
 setTimeout(()=>{
-if(!userChangedEngineControls){
-initializeEngineDefaults();
-}
+if(!userChangedEngineControls){ initializeEngineDefaults(); }
 },0);
-
-function pseudoRandom(x,y,seed){
-let n = Math.sin(x * 12.9898 + y * 78.233 + seed * 37.719) * 43758.5453;
-return n - Math.floor(n);
-}
 
 function applyPaletteColor(edited, dataIndex, color){
 edited[dataIndex] = color[0];
@@ -504,106 +509,49 @@ bestIndex = i;
 return bestIndex;
 }
 
-function applyDryPlateEdges(edited, components, width, height, edgeSource, colors, strength){
-if(strength <= 0){ return; }
-const s = strength / 100;
-const edgeThreshold = 22 + (1 - s) * 48;
-const erosionChance = 0.06 + s * 0.36;
-const liftChance = 0.025 + s * 0.16;
-
-for(let y=1; y<height-1; y++){
-for(let x=1; x<width-1; x++){
-const idx = y * width + x;
-const here = edgeSource[idx];
-const right = edgeSource[idx + 1];
-const left = edgeSource[idx - 1];
-const up = edgeSource[idx - width];
-const down = edgeSource[idx + width];
-const edgeContrast = Math.max(
-Math.abs(here - right),
-Math.abs(here - left),
-Math.abs(here - up),
-Math.abs(here - down)
-);
-
-if(edgeContrast < edgeThreshold){ continue; }
-
-const grain = pseudoRandom(x,y,707 + strength);
-const skip = pseudoRandom(x,y,811 + strength);
-const direction = pseudoRandom(x,y,919 + strength);
-const dataIndex = idx * components;
-const currentLum = (edited[dataIndex] + edited[dataIndex+1] + edited[dataIndex+2]) / 3;
-let paletteIndex = nearestPaletteByLuminance(currentLum, colors);
-
-if(grain < erosionChance){
-if(direction < 0.58){
-paletteIndex = Math.min(colors.length - 1, paletteIndex + 1);
-} else {
-paletteIndex = Math.max(0, paletteIndex - 1);
-}
-applyPaletteColor(edited,dataIndex,colors[paletteIndex]);
-}
-
-if(skip < liftChance){
-const lifted = Math.min(colors.length - 1, paletteIndex + 1);
-applyPaletteColor(edited,dataIndex,colors[lifted]);
+function nearestPaletteIndex(value, levels){
+let bestIndex = 0;
+let bestDistance = Infinity;
+for(let i=0; i<levels.length; i++){
+const distance = Math.abs(value - levels[i]);
+if(distance < bestDistance){
+bestDistance = distance;
+bestIndex = i;
 }
 }
-}
-}
-
-function applyMeltEdges(edited, components, width, height, edgeSource, colors, strength){
-if(strength <= 0){ return; }
-const s = Math.min(strength,50) / 50;
-const edgeThreshold = 18 + (1 - s) * 42;
-const darkBleedChance = 0.08 + s * 0.34;
-const softLiftChance = 0.015 + s * 0.12;
-const driftRange = 1 + Math.floor(s * 2);
-
-for(let y=1; y<height-1; y++){
-for(let x=1; x<width-1; x++){
-const idx = y * width + x;
-const here = edgeSource[idx];
-const right = edgeSource[idx + 1];
-const left = edgeSource[idx - 1];
-const up = edgeSource[idx - width];
-const down = edgeSource[idx + width];
-const edgeContrast = Math.max(
-Math.abs(here - right),
-Math.abs(here - left),
-Math.abs(here - up),
-Math.abs(here - down)
-);
-
-if(edgeContrast < edgeThreshold){ continue; }
-
-const r1 = pseudoRandom(x,y,1201 + strength);
-const r2 = pseudoRandom(x,y,1327 + strength);
-const r3 = pseudoRandom(x,y,1451 + strength);
-const dataIndex = idx * components;
-const currentLum = (edited[dataIndex] + edited[dataIndex+1] + edited[dataIndex+2]) / 3;
-let paletteIndex = nearestPaletteByLuminance(currentLum, colors);
-
-let nx = x;
-let ny = y;
-if(r2 < 0.25){ nx = Math.max(0, x - driftRange); }
-else if(r2 < 0.5){ nx = Math.min(width - 1, x + driftRange); }
-else if(r2 < 0.75){ ny = Math.max(0, y - driftRange); }
-else { ny = Math.min(height - 1, y + driftRange); }
-
-const nIdx = ny * width + nx;
-const nDataIndex = nIdx * components;
-const neighborLum = (edited[nDataIndex] + edited[nDataIndex+1] + edited[nDataIndex+2]) / 3;
-const neighborPaletteIndex = nearestPaletteByLuminance(neighborLum, colors);
-
-if(r1 < darkBleedChance && neighborPaletteIndex < paletteIndex){
-paletteIndex = Math.max(0, paletteIndex - 1);
-applyPaletteColor(edited,dataIndex,colors[paletteIndex]);
+return bestIndex;
 }
 
-if(r3 < softLiftChance){
-const softened = Math.min(colors.length - 1, paletteIndex + 1);
-applyPaletteColor(edited,dataIndex,colors[softened]);
+function tonalLevelsForPalette(colorCount){
+if(colorCount === 2){ return [0,255]; }
+if(colorCount === 3){ return [0,128,255]; }
+return [0,85,170,255];
+}
+
+function mapDotSizeControl(value){
+return Math.max(1, Math.min(2, Number(value) || 1));
+}
+
+function pixelateEditedByPalette(edited, components, width, height, colors, dotSize){
+const size = Math.max(1, Math.round(dotSize || 1));
+if(size <= 1){ return; }
+for(let by=0; by<height; by+=size){
+for(let bx=0; bx<width; bx+=size){
+let sum = 0;
+let count = 0;
+for(let y=by; y<Math.min(height, by + size); y++){
+for(let x=bx; x<Math.min(width, bx + size); x++){
+const di = (y * width + x) * components;
+sum += (0.299 * edited[di]) + (0.587 * edited[di + 1]) + (0.114 * edited[di + 2]);
+count++;
+}
+}
+const paletteIndex = nearestPaletteByLuminance(sum / Math.max(1,count), colors);
+const color = colors[paletteIndex];
+for(let y=by; y<Math.min(height, by + size); y++){
+for(let x=bx; x<Math.min(width, bx + size); x++){
+applyPaletteColor(edited,(y * width + x) * components,color);
+}
 }
 }
 }
@@ -621,9 +569,7 @@ await batchPlay([{
 async function getActiveLayerFresh(){
 const doc = app.activeDocument;
 const layers = doc.activeLayers;
-if(!layers || layers.length === 0){
-throw new Error("No active layer found.");
-}
+if(!layers || layers.length === 0){ throw new Error("No active layer found."); }
 return {doc, layer: layers[0]};
 }
 
@@ -645,9 +591,7 @@ await batchPlay([{
 "_options":{"dialogOptions":"dontDisplay"}
 }],{});
 return true;
-}catch(error){
-return false;
-}
+}catch(error){ return false; }
 }
 
 async function hideLayerByID(layerID){
@@ -658,9 +602,7 @@ await batchPlay([{
 "null":[{"_ref":"layer","_id":layerID}],
 "_options":{"dialogOptions":"dontDisplay"}
 }],{});
-}catch(error){
-console.warn("Could not hide preview layer", error);
-}
+}catch(error){ console.warn("Could not hide preview layer", error); }
 }
 
 async function deleteLayerByID(layerID){
@@ -672,9 +614,7 @@ if(layer && typeof layer.delete === "function"){
 await layer.delete();
 return;
 }
-}catch(error){
-console.warn("Direct preview layer delete skipped", error);
-}
+}catch(error){ console.warn("Direct preview layer delete skipped", error); }
 try{
 await batchPlay([{
 "_obj":"delete",
@@ -716,9 +656,7 @@ await selectLayerByID(previewSourceLayerID);
 }
 
 async function ensurePreviewLayer(settings){
-if(previewLayerID && await layerExists(previewLayerID)){
-return previewLayerID;
-}
+if(previewLayerID && await layerExists(previewLayerID)){ return previewLayerID; }
 await selectLayerByID(previewSourceLayerID);
 await duplicateActiveLayer("SignalMirage LIVE PREVIEW - " + settings.engine + " - " + settings.paletteName);
 await renameActiveLayer("SignalMirage LIVE PREVIEW - " + settings.engine + " - " + settings.paletteName);
@@ -750,135 +688,6 @@ out[y * width + x] = sum / count;
 return out;
 }
 
-function textureLuminance(lum,x,y,type,strength,grainScale){
-const gx = Math.floor(x / Math.max(1, grainScale || 1));
-const gy = Math.floor(y / Math.max(1, grainScale || 1));
-if(type === "none" || strength <= 0){ return lum; }
-const noise = (pseudoRandom(gx,gy,strength) - 0.5) * strength;
-
-if(type === "inkStain"){
-lum += noise * 0.75;
-if(pseudoRandom(gx,gy,11) < 0.014){ lum -= strength * 1.15; }
-if(pseudoRandom(gx,gy,23) < 0.008){ lum += strength * 0.65; }
-}
-
-else if(type === "xeroxGrit"){
-lum += noise * 0.95;
-if(pseudoRandom(gx,gy,17) < 0.018){ lum -= strength * 1.45; }
-if(pseudoRandom(gx,gy,31) < 0.012){ lum += strength * 0.45; }
-}
-
-else if(type === "fixerResidue"){
-lum += noise * 1.15;
-if(pseudoRandom(gx,gy,29) < 0.018){ lum -= strength * 0.9; }
-if(pseudoRandom(gx,gy,37) < 0.018){ lum += strength * 0.55; }
-}
-
-return clamp(lum);
-}
-
-function applyContaminationColor(edited,dataIndex,lum,x,y,type,strength,grainScale){
-const gx = Math.floor(x / Math.max(1, grainScale || 1));
-const gy = Math.floor(y / Math.max(1, grainScale || 1));
-if(type === "none" || strength <= 0){ return; }
-const tone = contaminationTones[type];
-if(!tone){ return; }
-
-const amount = Math.min(0.28, Math.max(0, strength) / 520);
-const variation = 0.65 + pseudoRandom(gx,gy,101) * 0.7;
-const blend = amount * variation;
-const target = lum < 118 ? tone.shadow : tone.primary;
-
-edited[dataIndex] = clamp(edited[dataIndex] * (1 - blend) + target[0] * blend);
-edited[dataIndex + 1] = clamp(edited[dataIndex + 1] * (1 - blend) + target[1] * blend);
-edited[dataIndex + 2] = clamp(edited[dataIndex + 2] * (1 - blend) + target[2] * blend);
-}
-
-function nearestPaletteIndex(value, levels){
-let bestIndex = 0;
-let bestDistance = Infinity;
-for(let i=0; i<levels.length; i++){
-const distance = Math.abs(value - levels[i]);
-if(distance < bestDistance){
-bestDistance = distance;
-bestIndex = i;
-}
-}
-return bestIndex;
-}
-
-
-function driftOffsets(x,y){
-const choice = Math.floor(pseudoRandom(x,y,191) * 4);
-if(choice === 0){
-return [[1,0,0.34],[-1,1,0.22],[0,1,0.28],[1,1,0.16]];
-}
-if(choice === 1){
-return [[-1,0,0.34],[1,1,0.22],[0,1,0.28],[-1,1,0.16]];
-}
-if(choice === 2){
-return [[0,1,0.34],[1,0,0.22],[-1,1,0.28],[1,1,0.16]];
-}
-return [[1,1,0.34],[-1,0,0.22],[0,1,0.28],[1,0,0.16]];
-}
-
-function buildDriftOrder(width,height,seed){
-const order = new Int32Array(width * height);
-for(let i=0; i<order.length; i++){
-order[i] = i;
-}
-for(let i=order.length - 1; i>0; i--){
-const j = Math.floor(pseudoRandom(i,seed,313) * (i + 1));
-const tmp = order[i];
-order[i] = order[j];
-order[j] = tmp;
-}
-return order;
-}
-
-function tonalLevelsForPalette(colorCount){
-if(colorCount === 2){ return [0,255]; }
-if(colorCount === 3){ return [0,128,255]; }
-return [0,85,170,255];
-}
-
-
-
-function mapDotSizeControl(value){
-const v = Math.max(1, Math.min(10, Number(value) || 1));
-return 1 + ((v - 1) / 9) * 3;
-}
-
-function mapGrainScaleControl(value){
-const v = Math.max(1, Math.min(10, Number(value) || 1));
-return 1 + ((v - 1) / 9) * 5;
-}
-
-function pixelateEditedByPalette(edited, components, width, height, colors, dotSize){
-const size = Math.max(1, Math.round(dotSize || 1));
-if(size <= 1){ return; }
-for(let by=0; by<height; by+=size){
-for(let bx=0; bx<width; bx+=size){
-let sum = 0;
-let count = 0;
-for(let y=by; y<Math.min(height, by + size); y++){
-for(let x=bx; x<Math.min(width, bx + size); x++){
-const di = (y * width + x) * components;
-sum += (0.299 * edited[di]) + (0.587 * edited[di + 1]) + (0.114 * edited[di + 2]);
-count++;
-}
-}
-const paletteIndex = nearestPaletteByLuminance(sum / Math.max(1,count), colors);
-const color = colors[paletteIndex];
-for(let y=by; y<Math.min(height, by + size); y++){
-for(let x=bx; x<Math.min(width, bx + size); x++){
-applyPaletteColor(edited,(y * width + x) * components,color);
-}
-}
-}
-}
-}
-
 function buildProcessor(settings){
 return function(edited, components, width, height){
 let gray = new Float32Array(width * height);
@@ -891,8 +700,6 @@ const g = edited[dataIndex + 1] || 0;
 const b = edited[dataIndex + 2] || 0;
 let lum = (0.299 * r) + (0.587 * g) + (0.114 * b);
 lum = applySignalResponseToLum(lum,settings.signalResponse);
-lum = textureLuminance(lum,x,y,settings.textureType,settings.textureAmount,settings.grainScale);
-
 gray[pixelIndex] = clamp(lum);
 }
 }
@@ -915,7 +722,6 @@ sharp[i] = clamp(base[i] + (base[i] - soft[i]) * amount);
 gray = sharp;
 }
 
-const edgeSource = new Float32Array(gray);
 const colors = settings.palette.colors;
 const levels = tonalLevelsForPalette(colors.length);
 const counts = new Array(colors.length).fill(0);
@@ -933,11 +739,9 @@ const dataIndex = idx * components;
 const oldValue = gray[idx];
 const adjusted = clamp(oldValue + bias);
 const paletteIndex = nearestPaletteIndex(adjusted,levels);
-const newValue = levels[paletteIndex];
-const error = adjusted - newValue;
+const error = adjusted - levels[paletteIndex];
 counts[paletteIndex]++;
 applyPaletteColor(edited,dataIndex,colors[paletteIndex]);
-applyContaminationColor(edited,dataIndex,newValue,x,y,settings.textureType,settings.textureAmount,settings.grainScale);
 
 if(settings.engine === "floyd"){
 addError(x + 1,y,error,7/16);
@@ -954,41 +758,15 @@ addError(x,y + 1,error,1/8);
 addError(x + 1,y + 1,error,1/8);
 addError(x,y + 2,error,1/8);
 }
-
-if(settings.engine === "drift"){
-const offsets = driftOffsets(x,y);
-for(let i=0; i<offsets.length; i++){
-addError(x + offsets[i][0],y + offsets[i][1],error,offsets[i][2]);
-}
-}
 }
 
-if(settings.engine === "drift"){
-const order = buildDriftOrder(width,height,settings.threshold + settings.textureAmount + settings.noise);
-for(let i=0; i<order.length; i++){
-const idx = order[i];
-const x = idx % width;
-const y = Math.floor(idx / width);
-processPixel(x,y);
-}
-} else {
 for(let y=0; y<height; y++){
 for(let x=0; x<width; x++){
 processPixel(x,y);
 }
 }
-}
 
 pixelateEditedByPalette(edited,components,width,height,colors,settings.dotSize);
-
-if(settings.edgeCharacter === "dryplate"){
-applyDryPlateEdges(edited,components,width,height,edgeSource,colors,settings.edgeStrength);
-}
-
-if(settings.edgeCharacter === "melt"){
-applyMeltEdges(edited,components,width,height,edgeSource,colors,settings.edgeStrength);
-}
-
 return {counts};
 };
 }
@@ -1005,23 +783,8 @@ signalResponse: controls.signalResponse ? Number(controls.signalResponse.value) 
 dotSize: controls.dotSize ? mapDotSizeControl(controls.dotSize.value) : 1,
 dotSizeControl: controls.dotSize ? Number(controls.dotSize.value) : 1,
 diffusion: Number(controls.diffusion.value) / 100,
-transmissionClarity: controls.transmissionClarity ? Number(controls.transmissionClarity.value) : 0,
-textureType: controls.textureType.value,
-textureAmount: Number(controls.textureAmount.value),
-grainScale: controls.grainScale ? mapGrainScaleControl(controls.grainScale.value) : 1,
-grainScaleControl: controls.grainScale ? Number(controls.grainScale.value) : 1,
-noise: 0,
-edgeCharacter: controls.edgeCharacter ? controls.edgeCharacter.value : "clean",
-edgeStrength: controls.edgeStrength ? Number(controls.edgeStrength.value) : 0
+transmissionClarity: controls.transmissionClarity ? Number(controls.transmissionClarity.value) : 0
 };
-}
-
-function countReport(report){
-let parts = [];
-for(let i=0; i<report.counts.length; i++){
-parts.push("C" + (i + 1) + ": " + report.counts[i]);
-}
-return parts.join(" | ");
 }
 
 async function runVisualPreviewRender(){
@@ -1030,16 +793,12 @@ ensureEngineBootState();
 const settings = currentSettings();
 let info = null;
 await core.executeAsModal(async ()=>{
-if(!previewSourceLayerID || !(await layerExists(previewSourceLayerID))){
-await rememberPreviewSource();
-}
+if(!previewSourceLayerID || !(await layerExists(previewSourceLayerID))){ await rememberPreviewSource(); }
 const targetLayerID = await ensurePreviewLayer(settings);
 info = await writePixelEffectFromSourceToTarget(previewSourceLayerID,targetLayerID,buildProcessor(settings));
 await selectLayerByID(targetLayerID);
 },{commandName:"Render SignalMirage Live Preview"});
-if(info){
-setStatus("Preview updated.");
-}
+if(info){ setStatus("Preview updated."); }
 }
 
 async function writePixelEffectFromSourceToTarget(sourceLayerID,targetLayerID,processor){
@@ -1152,10 +911,8 @@ if(previewLayerID){
 await deleteLayerByID(previewLayerID);
 previewLayerID = null;
 }
-if(previewSourceLayerID){
-await selectLayerByID(previewSourceLayerID);
-}
-await duplicateActiveLayer("SignalMirage FINAL-V.1.1.1 - " + settings.engine + " - " + settings.paletteName);
+if(previewSourceLayerID){ await selectLayerByID(previewSourceLayerID); }
+await duplicateActiveLayer("SignalMirage FINAL-V.1.5.0-RC - " + settings.engine + " - " + settings.paletteName);
 info = await writePixelEffectToActiveLayer(buildProcessor(settings));
 },{commandName:"Apply SignalMirage"});
 suppressPreview = false;

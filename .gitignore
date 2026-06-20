@@ -23,6 +23,9 @@ build/
 *.ccx
 !SignalMirage.ccx
 
+# Local backup folders
+plugin-old/
+
 # Local environment files
 .env
 .env.*

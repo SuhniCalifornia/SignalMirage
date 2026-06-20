@@ -1,35 +1,22 @@
 # SignalMirage Changelog
 
-## v1.1.1
-
-Refinement release focused on monochrome workflow clarity and final v1.1.1 cleanup.
+## v1.5.0 release candidate
 
 ### Changed
-- Removed all four-color palette options from the active palette system.
-- Kept only two-color palettes: Ghost + Dance and Midnight + Moon.
-- Refined Dot Size to 10 subtle slider steps mapped to the old practical 1-4 range.
-- Refined Grain Scale to 10 subtle slider steps.
-- Simplified footer/status messages to avoid horizontal and vertical scrollbars.
-- Preserved first-preview engine initialization so Atkinson renders correctly on first use.
-- Updated manifest version to 1.1.1.
+- Cleaned the JavaScript to match the final simplified SignalMirage interface.
+- Removed unused Palette, Signal Spread, Artifact, Edge, Grain, and contamination systems.
+- Kept the focused monochrome Range system with Black Point and White Point.
+- Kept Lucid, Ghost, Veil, and Echo as the active preset set.
+- Updated final layer naming to v1.5.0 RC.
 
-## v1.1.0
+### Removed
+- Removed hidden internal fallback controls from the HTML.
+- Removed the Range preview bar completely.
+- Removed old Artifact and Edge CSS.
 
-Refinement release focused on daily-use workflow and panel compactness.
+## v1.4.1 test
 
-### Added
-- Dot Size control for larger or finer dither structure.
-- Grain Scale control for finer or coarser surface contamination.
-- Per-engine memory. Each dither engine remembers its last adjusted settings during the session.
-- Reset Engine button to restore the selected engine to its default starting values.
-
-### Changed
-- Compact UXP panel layout.
-- Removed Palette Mode dropdown. Palette color count is now handled automatically by the palette.
-- Reorganized controls into Source, Tone, Structure, Surface, Edge, and Action sections.
-- Edge Strength hides when Edge Character is set to Clean.
-- Updated manifest version to 1.1.0.
-
-## v1.0.0
-
-Initial SignalMirage release.
+### Fixed
+- Hidden internal Artifact and Edge fallback controls no longer appear in the visible panel.
+- Range controls are fully wired into engine memory and presets.
+- Presets visibly update Black Point and White Point values.

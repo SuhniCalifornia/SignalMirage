@@ -2,8 +2,8 @@
   "manifestVersion": 5,
   "id": "com.suhnicalifornia.signalmirage",
   "name": "SignalMirage",
-  "version": "1.1.1",
-  "description": "A transmission-based dithering and texture system for Photoshop.",
+  "version": "1.5.0",
+  "description": "A focused monochrome transmission-dither system for Photoshop.",
   "author": "Suhni California / Alchemized Studio",
   "main": "index.html",
   "host": {

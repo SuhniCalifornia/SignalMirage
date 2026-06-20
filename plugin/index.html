@@ -2,37 +2,46 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>SignalMirage v1.1.1</title>
+<title>SignalMirage v1.5.0 RC</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="app">
 
 <header class="app-header">
-<img src="logo-84.png" width="60" height="60" class="logo" alt="SignalScreen Logo">
-<h1>SignalMirage</h1>
+<h1>Signal<img src="logo-84.png" width="60" height="60" class="logo" alt="SignalMirage Logo">Mirage</h1>
 <p>[transmission dither system for Photoshop]</p>
-</header>  
-  
+</header>
+
 <main>
 
 <section class="compact-section">
 <h2>Source</h2>
-<label for="engine">Dither Engine</label>
+<div class="previewToggleRow topPreviewToggleRow">
+<label class="previewToggle">
+<input type="checkbox" id="livePreview">
+<span>LIVE Preview</span>
+</label>
+</div>
+</section>
+
+<section class="compact-section">
+<h2>Preset</h2>
+<div class="presetRow" id="presetRow">
+<div class="presetButton" data-preset="clean" role="button" tabindex="0">Lucid</div>
+<div class="presetButton" data-preset="ghost" role="button" tabindex="0">Ghost</div>
+<div class="presetButton" data-preset="veil" role="button" tabindex="0">Veil</div>
+<div class="presetButton" data-preset="echo" role="button" tabindex="0">Echo</div>
+</div>
+</section>
+
+<section class="compact-section">
+<h2>Customize</h2>
+<label class="text-wide" for="engine">[Dither:Algorithm]</label>
 <select id="engine">
 <option value="atkinson">Atkinson</option>
 <option value="floyd">Floyd-Steinberg</option>
-<option value="drift">Printer-Drift</option>
-<option value="threshold">Threshold</option>
-
 </select>
-<button id="resetEngine" class="miniButton" type="button">Reset Engine</button>
-
-<label for="palette">Palette</label>
-<select id="palette"></select>
-<div class="palettePreview" id="palettePreview">
-<span></span><span></span><span></span><span></span>
-</div>
 </section>
 
 <section class="compact-section">
@@ -51,12 +60,28 @@
 </div>
 </section>
 
+<section class="compact-section range-section">
+<h2>Range</h2>
+<div class="control compact-control">
+<div class="controlBody">
+<div class="controlTop"><label for="blackPoint"><span class="pointIcon pointBlack"></span>Black Point</label><div class="value" id="blackPointValue">0</div></div>
+<input type="range" id="blackPoint" min="0" max="250" value="0">
+</div>
+</div>
+<div class="control compact-control">
+<div class="controlBody">
+<div class="controlTop"><label for="whitePoint"><span class="pointIcon pointWhite"></span>White Point</label><div class="value" id="whitePointValue">255</div></div>
+<input type="range" id="whitePoint" min="5" max="255" value="255">
+</div>
+</div>
+</section>
+
 <section class="compact-section">
 <h2>Structure</h2>
 <div class="control compact-control">
 <div class="controlBody">
 <div class="controlTop"><label for="dotSize">Dot Size</label><div class="value" id="dotSizeValue">1</div></div>
-<input type="range" id="dotSize" min="1" max="10" value="1">
+<input type="range" id="dotSize" min="1" max="2" value="1">
 </div>
 </div>
 <div class="control compact-control">
@@ -65,6 +90,10 @@
 <input type="range" id="diffusion" min="0" max="100" value="96">
 </div>
 </div>
+</section>
+
+<section class="compact-section">
+<h2>Atmosphere</h2>
 <div class="control compact-control">
 <div class="controlBody">
 <div class="controlTop"><label for="transmissionClarity">Transmission Clarity</label><div class="value" id="transmissionClarityValue">0</div></div>
@@ -74,58 +103,15 @@
 </div>
 </section>
 
-<section class="compact-section">
-<h2>Surface</h2>
-<label class="italic" for="textureType">Surface Type</label>
-<select id="textureType">
-<option value="none">None</option>
-<option value="xeroxGrit">Xerox Grit</option>
-<option value="fixerResidue">Fixer Residue</option>
-</select>
-<div class="control compact-control">
-<div class="controlBody">
-<div class="controlTop"><label for="textureAmount">Surface Decay</label><div class="value" id="textureAmountValue">24</div></div>
-<input type="range" id="textureAmount" min="0" max="120" value="24">
-</div>
-</div>
-<div class="control compact-control">
-<div class="controlBody">
-<div class="controlTop"><label for="grainScale">Grain Scale</label><div class="value" id="grainScaleValue">1</div></div>
-<input type="range" id="grainScale" min="1" max="10" value="1">
-</div>
-</div>
-</section>
-
-<section class="compact-section">
-<h2>Edge</h2>
-<label class="italic" for="edgeCharacter">Edge Character</label>
-<select id="edgeCharacter">
-<option value="clean">Clean</option>
-<option value="dryplate">Dry Plate</option>
-<option value="melt">Toner Leak</option>
-</select>
-<div class="control compact-control" id="edgeStrengthControl">
-<div class="controlBody">
-<div class="controlTop"><label for="edgeStrength">Edge Strength</label><div class="value" id="edgeStrengthValue">48</div></div>
-<input type="range" id="edgeStrength" min="0" max="100" value="48">
-</div>
-</div>
-</section>
-
 <section class="compact-section action-section">
-<div class="previewToggleRow">
-<label class="previewToggle">
-<input type="checkbox" id="livePreview">
-<span>Live Visual Preview</span>
-</label>
-</div>
+<button id="resetEngine" class="miniButton" type="button">Reset Defaults</button>
 <button id="applyEngine">Apply SignalMirage Process</button>
 </section>
 
 </main>
 <footer>
 <div id="status">READY</div>
-<div class="version">SignalMirage v1.1.1</div>
+<div class="version">Signal&middot;Mirage v1.5.0 RC</div>
 </footer>
 </div>
 <script src="main.js"></script>
